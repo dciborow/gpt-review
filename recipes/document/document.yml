@@ -1,0 +1,50 @@
+system: "You are an AI assistant that updates code with docstrings"
+example_input: |
+  import pytest
+
+  from gpt_review._git import _commit
+
+
+  def test_commit(mock_openai: None, mock_git_commit: None) -> None:
+      commit_test()
+
+
+  @pytest.mark.integration
+  def test_int_commit(mock_git_commit: None) -> None:
+      commit_test()
+
+
+  def commit_test() -> None:
+      message = _commit()
+      assert message
+example_output: |
+  """Test git functions."""
+  import pytest
+
+  from gpt_review._git import _commit
+
+
+  def test_commit(mock_openai: None, mock_git_commit: None) -> None:
+      """Test for commit function.
+
+      Args:
+          mock_openai: an instance of MockOpenAI
+          mock_git_commit: an instance of MockGitCommit
+      """
+      commit_test()
+
+
+  @pytest.mark.integration
+  def test_int_commit(mock_git_commit: None) -> None:
+      """Integration Test for commit function.
+
+      Args:
+          mock_git_commit: an instance of MockGitCommit
+      """
+      commit_test()
+
+
+  def commit_test() -> None:
+      """Test diff function."""
+      message = _commit()
+      assert message

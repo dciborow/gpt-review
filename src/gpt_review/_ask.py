@@ -23,6 +23,7 @@ from llama_index import (
     SimpleDirectoryReader,
 )
 from llama_index.indices.base import BaseGPTIndex
+import yaml
 
 from gpt_review._command import GPTCommandGroup
 import gpt_review.constants as C
@@ -162,15 +163,16 @@ def _ask(
     presence_penalty: float = C.PRESENCE_PENALTY_DEFAULT,
     files: Optional[List[str]] = None,
     fast: bool = False,
+    example: Optional[str] = None,
 ) -> Dict[str, str]:
     """Ask GPT a question."""
     _load_azure_openai_context()
 
     prompt = " ".join(question)
-
     if files:
         response = _ask_doc(prompt, files)
     else:
+        messages = _load_example(example, prompt)
         response = _call_gpt(
             prompt=prompt,
             max_tokens=max_tokens,
@@ -179,8 +181,25 @@ def _ask(
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
             fast=fast,
+            messages=messages,
         )
     return {"response": response}
+
+
+def _load_example(example, prompt):
+    messages = None
+    if example:
+        with open(example, 'r', encoding="utf8") as stream:
+            data_loaded = yaml.safe_load(stream)
+
+            messages = [
+                {"role": "system", "content": data_loaded['system']},
+                {"role": "user", "content": data_loaded['example_input']},
+                {"role": "assistant", "content": data_loaded['example_output']},
+                {"role": "user", "content": prompt}
+            ]
+
+    return messages
 
 
 def _load_azure_openai_context() -> None:
@@ -329,4 +348,10 @@ class AskCommandGroup(GPTCommandGroup):
                 help="Ask question about a file. Can be used multiple times.",
                 default=None,
                 action="append",
+            )
+            args.argument(
+                "example",
+                type=str,
+                help="A yml including an example input and output exchange",
+                default=None,
             )
