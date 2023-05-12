@@ -40,6 +40,7 @@ dependencies = [
 test = [
     "bandit[toml]==1.7.5",
     "black==23.3.0",
+    "cattrs",
     "check-manifest==0.49",
     "flake8-bugbear==23.5.9",
     "flake8-docstrings",
@@ -55,7 +56,8 @@ test = [
     "pytest-xdist",
     "pytest>=7.2.2",
     "pytest-github-actions-annotate-failures",
-    "shellcheck-py==0.9.0.2"
+    "shellcheck-py==0.9.0.2",
+    "requests_mock"
 ]
 
 [project.scripts]
@@ -137,7 +139,7 @@ executionEnvironments = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov-report xml:coverage.xml --cov src --cov-fail-under 0 --cov-append -n auto"
+addopts = "--cov-report xml:coverage.xml --cov src --cov-fail-under 0 --cov-append -m unit"
 pythonpath = [
   "src"
 ]

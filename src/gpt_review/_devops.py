@@ -84,10 +84,5 @@ def _get_diff(token, org, project, repository_id, diff_common_commit, base_versi
     Returns:
         Response: The response from the API.
     """
-    url = f"https://dev.azure.com/{org}/{project}/_apis/git/repositories/{repository_id}/diffsCommonCommit/{diff_common_commit}?api-version=6.0"
-
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
-
-    data = {"baseVersion": base_version, "targetVersion": target_version}
-
-    return requests.post(url, headers=headers, data=json.dumps(data), timeout=10)
+    git_client = _create_client(token, org)
+    return git_client.get_commit_diffs(repository_id, diff_common_commit, base_version, target_version)
