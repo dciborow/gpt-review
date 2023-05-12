@@ -1,5 +1,6 @@
 """Azure DevOps Package Wrappers to Simplify Usage."""
 import logging
+import json
 import os
 from typing import Dict, Iterator
 
@@ -21,8 +22,8 @@ from knack.arguments import ArgumentsContext
 from knack import CLICommandsLoader
 from knack.commands import CommandGroup
 
+from gpt_review._ask import _ask
 from gpt_review._command import GPTCommandGroup
-from gpt_review._openai import _call_gpt
 from gpt_review._review import _summarize_files
 from gpt_review.repositories._repository import _RepositoryClient
 
@@ -233,13 +234,28 @@ class _DevOpsClient(_RepositoryClient):
             **kwargs,
         )
 
+    @staticmethod
+    def process_payload(payload: str):
+        """
+        Extract question from Service Bus payload.
+
+        Args:
+            payload (str): The Service Bus payload.
+
+        Returns:
+            str: The question from the Azure DevOps Comment.
+        """
+        payload = json.loads(payload)
+        question = payload["resource"]["comment"]["content"]
+        return question
+
 
 def _review(diff: str = ".diff", link=None, access_token=None) -> Dict[str, str]:
-    """Review GitHub PR with Open AI, and post response as a comment.
+    """Review Azure DevOps PR with Open AI, and post response as a comment.
 
     Args:
         link (str): The link to the PR.
-        access_token (str): The GitHub access token.
+        access_token (str): The Azure DevOps access token.
 
     Returns:
         Dict[str, str]: The response.
@@ -253,14 +269,14 @@ def _review(diff: str = ".diff", link=None, access_token=None) -> Dict[str, str]
 
 
 def _comment(question: str, comment_id: int, diff: str = ".diff", link=None, access_token=None) -> Dict[str, str]:
-    """Review GitHub PR with Open AI, and post response as a comment.
+    """Review Azure DevOps PR with Open AI, and post response as a comment.
 
     Args:
         question (str): The question to ask.
         comment_id (int): The comment ID.
         diff(str): The diff file.
         link (str): The link to the PR.
-        access_token (str): The GitHub access token.
+        access_token (str): The Azure DevOps access token.
 
     Returns:
         Dict[str, str]: The response.
@@ -276,8 +292,8 @@ def _comment(question: str, comment_id: int, diff: str = ".diff", link=None, acc
     access_token = os.getenv("ADO_TOKEN", access_token)
 
     if link and access_token:
-        response = _call_gpt(
-            prompt=question,
+        response = _ask(
+            question=question,
         )
         if "dev.azure.com" in link:
             org = link.split("/")[3]
@@ -291,9 +307,9 @@ def _comment(question: str, comment_id: int, diff: str = ".diff", link=None, acc
             pr_id = link.split("/")[7]
 
     _DevOpsClient(pat=access_token, org=org, project=project, repository_id=repo).create_comment(
-        pull_request_id=pr_id, comment_id=comment_id, text=response
+        pull_request_id=pr_id, comment_id=comment_id, text=response["response"]
     )
-    return {"response": "Review posted as a comment."}
+    return {"response": "Review posted as a comment.", "text": response["response"]}
 
 
 class DevOpsCommandGroup(GPTCommandGroup):
@@ -301,7 +317,7 @@ class DevOpsCommandGroup(GPTCommandGroup):
 
     @staticmethod
     def load_command_table(loader: CLICommandsLoader) -> None:
-        with CommandGroup(loader, "ado", "gpt_review.repositories._devops#{}") as group:
+        with CommandGroup(loader, "ado", "gpt_review.repositories._devops#{}", is_preview=True) as group:
             group.command("review", "_review", is_preview=True)
             group.command("comment", "_comment", is_preview=True)
 
@@ -309,7 +325,6 @@ class DevOpsCommandGroup(GPTCommandGroup):
     def load_arguments(loader: CLICommandsLoader) -> None:
         """Add patch_repo, patch_pr, and access_token arguments."""
         with ArgumentsContext(loader, "ado") as args:
-            args.positional("question", type=str, nargs="+", help="Provide a question to ask GPT.")
             args.argument(
                 "diff",
                 type=str,
@@ -319,7 +334,7 @@ class DevOpsCommandGroup(GPTCommandGroup):
             args.argument(
                 "access_token",
                 type=str,
-                help="The Azure DevOps access token. Set or use ADO_TOKEN environment variable.",
+                help="The Azure DevOps access token, or set ADO_TOKEN",
                 default=None,
             )
             args.argument(
@@ -328,7 +343,9 @@ class DevOpsCommandGroup(GPTCommandGroup):
                 help="The link to the PR.",
                 default=None,
             )
+
         with ArgumentsContext(loader, "ado comment") as args:
+            args.positional("question", type=str, nargs="+", help="Provide a question to ask GPT.")
             args.argument(
                 "comment_id",
                 type=int,
