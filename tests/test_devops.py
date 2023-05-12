@@ -11,7 +11,7 @@ from azure.devops.v7_1.git.models import (
     GitPullRequestCommentThread,
 )
 
-from gpt_review.repositories._devops import DevOpsClient
+from gpt_review.repositories._devops import _DevOpsClient
 
 # Azure Devops PAT requires
 # - Code: 'Read','Write'
@@ -229,21 +229,21 @@ def mock_update_thread(monkeypatch) -> None:
 
 
 @pytest.fixture
-def devops_client() -> DevOpsClient:
-    return DevOpsClient(TOKEN, ORG, PROJECT, REPO)
+def devops_client() -> _DevOpsClient:
+    return _DevOpsClient(TOKEN, ORG, PROJECT, REPO)
 
 
-def test_create_comment(devops_client: DevOpsClient, mock_update_thread) -> None:
+def test_create_comment(devops_client: _DevOpsClient, mock_update_thread) -> None:
     response = devops_client._create_comment(pull_request_id=PR_ID, comment_id=COMMENT_ID, text="text1")
     assert isinstance(response, Comment)
 
 
-def test_update_pr(devops_client: DevOpsClient, mock_update_thread) -> None:
+def test_update_pr(devops_client: _DevOpsClient, mock_update_thread) -> None:
     response = devops_client._update_pr(pull_request_id=PR_ID, title="title1", description="description1")
     assert isinstance(response, GitPullRequest)
 
 
-def test_get_diff(devops_client: DevOpsClient, mock_update_thread) -> None:
+def test_get_diff(devops_client: _DevOpsClient, mock_update_thread) -> None:
     response = devops_client._get_commit_diff(
         diff_common_commit=True,
         base_version=GitBaseVersionDescriptor(version=SOURCE, version_type="commit"),
@@ -253,13 +253,13 @@ def test_get_diff(devops_client: DevOpsClient, mock_update_thread) -> None:
 
 
 @pytest.mark.integration
-def test_create_comment_integration(devops_client: DevOpsClient) -> None:
+def test_create_comment_integration(devops_client: _DevOpsClient) -> None:
     response = devops_client._create_comment(pull_request_id=PR_ID, comment_id=COMMENT_ID, text="text1")
     assert isinstance(response, Comment)
 
 
 @pytest.mark.integration
-def test_update_pr_integration(devops_client: DevOpsClient) -> None:
+def test_update_pr_integration(devops_client: _DevOpsClient) -> None:
     response = devops_client._update_pr(PR_ID, description="description1")
     assert isinstance(response, GitPullRequest)
     response = devops_client._update_pr(PR_ID, title="Sample PR Title")
@@ -267,7 +267,7 @@ def test_update_pr_integration(devops_client: DevOpsClient) -> None:
 
 
 @pytest.mark.integration
-def test_get_diff_integration(devops_client: DevOpsClient) -> None:
+def test_get_diff_integration(devops_client: _DevOpsClient) -> None:
     response = devops_client._get_commit_diff(
         diff_common_commit=True,
         base_version=GitBaseVersionDescriptor(version=SOURCE, version_type="commit"),

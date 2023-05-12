@@ -1,7 +1,8 @@
 """Azure DevOps Package Wrappers to Simplify Usage."""
-from typing import Iterator
+import logging
+import os
+from typing import Dict, Iterator
 
-from requests.models import Response
 from msrest.authentication import BasicAuthentication
 
 from azure.devops.connection import Connection
@@ -17,9 +18,69 @@ from azure.devops.v7_1.git.models import (
 )
 from azure.devops.v7_1.git.git_client import GitClient
 
+from gpt_review.repositories._repository import _RepositoryClient
+from gpt_review._review import _summarize_files
 
-class DevOpsClient:
+
+class _DevOpsClient(_RepositoryClient):
     """Azure DevOps API Client Wrapper."""
+
+    @staticmethod
+    def post_pr_summary(diff) -> Dict[str, str]:
+        """
+        Get a review of a PR.
+
+        Requires the following environment variables:
+            - LINK: The link to the PR.
+                Example: https://<org>.visualstudio.com/<project>/_git/<repo>/pullrequest/<pr_id>
+                    or   https://dev.azure.com/<org>/<project>/_git/<repo>/pullrequest/<pr_id>
+            - ADO_TOKEN: The GitHub access token.
+
+        Args:
+            diff (str): The patch of the PR.
+
+        Returns:
+            Dict[str, str]: The review.
+        """
+        link = os.getenv("LINK")
+        access_token = os.getenv("ADO_TOKEN")
+
+        if link and access_token:
+            review = _summarize_files(diff)
+
+            if "dev.azure.com" in link:
+                org = link.split("/")[3]
+                project = link.split("/")[4]
+                repo = link.split("/")[6]
+                pr_id = link.split("/")[8]
+            else:
+                org = link.split("/")[2].split(".")[0]
+                project = link.split("/")[3]
+                repo = link.split("/")[5]
+                pr_id = link.split("/")[7]
+
+            _DevOpsClient(pat=access_token, org=org, project=project, repository_id=repo).update_pr(
+                pull_request_id=pr_id,
+                description=review,
+            )
+            return {"response": "PR posted"}
+
+        logging.warning("No PR to post too")
+        return {"response": "No PR to post too"}
+
+    @staticmethod
+    def get_pr_diff(patch_repo=None, patch_pr=None, access_token=None) -> str:
+        """
+        Get the diff of a PR.
+
+        Args:
+            patch_repo (str): The repo.
+            patch_pr (str): The PR.
+            access_token (str): The GitHub access token.
+
+        Returns:
+            str: The diff of the PR.
+        """
 
     def __init__(self, pat, org, project, repository_id) -> None:
         personal_access_token = pat
@@ -98,7 +159,7 @@ class DevOpsClient:
             resolve_lfs=resolve_lfs,
         )
 
-    def _update_pr(self, pull_request_id, title=None, description=None) -> GitPullRequest:
+    def update_pr(self, pull_request_id, title=None, description=None) -> GitPullRequest:
         """
         Update a pull request.
 

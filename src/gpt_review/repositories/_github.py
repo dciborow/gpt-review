@@ -104,17 +104,22 @@ class _GitHubClient(_RepositoryClient):
         return response
 
     @staticmethod
-    def post_pr_summary(pr_patch) -> Dict[str, str]:
+    def post_pr_summary(diff) -> Dict[str, str]:
         """
         Get a review of a PR.
 
+        Requires the following environment variables:
+            - LINK: The link to the PR.
+            - GIT_COMMIT_HASH: The git commit hash.
+            - GITHUB_TOKEN: The GitHub access token.
+
         Args:
-            pr_patch (str): The patch of the PR.
+            diff (str): The patch of the PR.
 
         Returns:
             Dict[str, str]: The review.
         """
-        review = _summarize_files(pr_patch)
+        review = _summarize_files(diff)
         logging.debug(review)
 
         link = os.getenv("LINK")
