@@ -262,7 +262,7 @@ def test_create_comment_integration(devops_client: _DevOpsClient) -> None:
 def test_update_pr_integration(devops_client: _DevOpsClient) -> None:
     response = devops_client.update_pr(PR_ID, description="description1")
     assert isinstance(response, GitPullRequest)
-    response = devops_client._update_pr(PR_ID, title="Sample PR Title")
+    response = devops_client.update_pr(PR_ID, title="Sample PR Title")
     assert isinstance(response, GitPullRequest)
 
 
