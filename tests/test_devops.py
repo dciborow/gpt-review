@@ -204,7 +204,9 @@ def mock_update_thread(monkeypatch) -> None:
         ) -> GitPullRequestCommentThread:
             return GitPullRequestCommentThread()
 
-        def update_pull_request(self, git_pull_request_to_update, repository_id, pull_request_id, project=None):
+        def update_pull_request(
+            self, git_pull_request_to_update, repository_id, pull_request_id, project=None
+        ) -> GitPullRequest:
             return GitPullRequest()
 
         def get_commit_diffs(
@@ -258,7 +260,9 @@ def test_create_comment_integration(devops_client: DevOpsClient) -> None:
 
 @pytest.mark.integration
 def test_update_pr_integration(devops_client: DevOpsClient) -> None:
-    response = devops_client._update_pr(PR_ID, "title1", "description1")
+    response = devops_client._update_pr(PR_ID, description="description1")
+    assert isinstance(response, GitPullRequest)
+    response = devops_client._update_pr(PR_ID, title="Sample PR Title")
     assert isinstance(response, GitPullRequest)
 
 
