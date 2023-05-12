@@ -219,10 +219,11 @@ def mock_update_thread(monkeypatch) -> None:
         ) -> GitCommitDiffs:
             return GitCommitDiffs()
 
-    def mock_get_core_client(self) -> MockDevOpsClient:
+    def mock_client(self) -> MockDevOpsClient:
         return MockDevOpsClient()
 
-    monkeypatch.setattr("azure.devops.released.client_factory.ClientFactory.get_core_client", mock_get_core_client)
+    monkeypatch.setattr("azure.devops.released.client_factory.ClientFactory.get_core_client", mock_client)
+    monkeypatch.setattr("azure.devops.v7_1.client_factory.ClientFactoryV7_1.get_git_client", mock_client)
 
 
 @pytest.fixture
