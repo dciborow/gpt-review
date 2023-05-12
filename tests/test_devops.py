@@ -13,16 +13,15 @@ from azure.devops.v7_1.git.models import (
 from gpt_review._devops import DevOpsClient
 
 
-TOKEN = "wek2yfvavgvvtgan2wvltm4jlqpyusgbl3icm3v2hsnz7vmyclva"  # os.getenv("ADO_TOKEN", "token1")
-ORG = "msazure"  # os.getenv("ADO_ORG", "org1")
-PROJECT = "one"  # os.getenv("ADO_PROJECT", "proj1")
-REPO = "azure-gaming"  # os.getenv("ADO_REPO", "repo1")
-PR_ID = 8063875  # os.getenv("ADO_PR_ID", "pr1")
-COMMIT_ID = 141344325  # os.getenv("ADO_COMMIT_ID", "commit1");
+TOKEN = os.getenv("ADO_TOKEN", "token1")
+ORG = os.getenv("ADO_ORG", "msazure")
+PROJECT = os.getenv("ADO_PROJECT", "one")
+REPO = os.getenv("ADO_REPO", "azure-gaming")
+PR_ID = int(os.getenv("ADO_PR_ID", 8063875))
+COMMIT_ID = int(os.getenv("ADO_COMMIT_ID", 141344325))
 
-COMMENT_ID = 141344325
-SOURCE = "36f9a015ee220516f5f553faaa1898ab10972536"
-TARGET = "ecea1ea7db038317e94b45e090781410dc519b85"
+SOURCE = os.getenv("ADO_COMMIT_SOURCE", "36f9a015ee220516f5f553faaa1898ab10972536")
+TARGET = os.getenv("ADO_COMMIT_TARGET", "ecea1ea7db038317e94b45e090781410dc519b85")
 
 SAMPLE_PAYLOAD = """
 {
