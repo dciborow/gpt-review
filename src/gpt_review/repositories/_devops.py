@@ -17,16 +17,21 @@ from azure.devops.v7_1.git.models import (
     GitPullRequestCommentThread,
 )
 from azure.devops.v7_1.git.git_client import GitClient
+from knack.arguments import ArgumentsContext
+from knack import CLICommandsLoader
+from knack.commands import CommandGroup
 
-from gpt_review.repositories._repository import _RepositoryClient
+from gpt_review._command import GPTCommandGroup
+from gpt_review._openai import _call_gpt
 from gpt_review._review import _summarize_files
+from gpt_review.repositories._repository import _RepositoryClient
 
 
 class _DevOpsClient(_RepositoryClient):
     """Azure DevOps API Client Wrapper."""
 
     @staticmethod
-    def post_pr_summary(diff) -> Dict[str, str]:
+    def post_pr_summary(diff, link=None, access_token=None) -> Dict[str, str]:
         """
         Get a review of a PR.
 
@@ -42,8 +47,8 @@ class _DevOpsClient(_RepositoryClient):
         Returns:
             Dict[str, str]: The review.
         """
-        link = os.getenv("LINK")
-        access_token = os.getenv("ADO_TOKEN")
+        link = os.getenv("LINK", link)
+        access_token = os.getenv("ADO_TOKEN", access_token)
 
         if link and access_token:
             review = _summarize_files(diff)
@@ -95,7 +100,7 @@ class _DevOpsClient(_RepositoryClient):
         self.project = project
         self.repository_id = repository_id
 
-    def _create_comment(self, pull_request_id: int, comment_id: int, text) -> Comment:
+    def create_comment(self, pull_request_id: int, comment_id: int, text) -> Comment:
         """
         Create a comment on a pull request.
 
@@ -227,3 +232,106 @@ class _DevOpsClient(_RepositoryClient):
             version_descriptor=GitVersionDescriptor(commit_id, version_type="commit"),
             **kwargs,
         )
+
+
+def _review(diff: str = ".diff", link=None, access_token=None) -> Dict[str, str]:
+    """Review GitHub PR with Open AI, and post response as a comment.
+
+    Args:
+        link (str): The link to the PR.
+        access_token (str): The GitHub access token.
+
+    Returns:
+        Dict[str, str]: The response.
+    """
+    # diff = _DevOpsClient.get_pr_diff(repository, pull_request, access_token)
+    with open(diff, "r", encoding="utf8") as file:
+        diff_contents = file.read()
+
+    _DevOpsClient.post_pr_summary(diff_contents, link, access_token)
+    return {"response": "Review posted as a comment."}
+
+
+def _comment(question: str, comment_id: int, diff: str = ".diff", link=None, access_token=None) -> Dict[str, str]:
+    """Review GitHub PR with Open AI, and post response as a comment.
+
+    Args:
+        question (str): The question to ask.
+        comment_id (int): The comment ID.
+        diff(str): The diff file.
+        link (str): The link to the PR.
+        access_token (str): The GitHub access token.
+
+    Returns:
+        Dict[str, str]: The response.
+    """
+    # diff = _DevOpsClient.get_pr_diff(repository, pull_request, access_token)
+
+    if os.path.exists(diff):
+        with open(diff, "r", encoding="utf8") as file:
+            diff_contents = file.read()
+            question = f"{diff_contents}\n{question}"
+
+    link = os.getenv("LINK", link)
+    access_token = os.getenv("ADO_TOKEN", access_token)
+
+    if link and access_token:
+        response = _call_gpt(
+            prompt=question,
+        )
+        if "dev.azure.com" in link:
+            org = link.split("/")[3]
+            project = link.split("/")[4]
+            repo = link.split("/")[6]
+            pr_id = link.split("/")[8]
+        else:
+            org = link.split("/")[2].split(".")[0]
+            project = link.split("/")[3]
+            repo = link.split("/")[5]
+            pr_id = link.split("/")[7]
+
+    _DevOpsClient(pat=access_token, org=org, project=project, repository_id=repo).create_comment(
+        pull_request_id=pr_id, comment_id=comment_id, text=response
+    )
+    return {"response": "Review posted as a comment."}
+
+
+class DevOpsCommandGroup(GPTCommandGroup):
+    """Ask Command Group."""
+
+    @staticmethod
+    def load_command_table(loader: CLICommandsLoader) -> None:
+        with CommandGroup(loader, "ado", "gpt_review.repositories._devops#{}") as group:
+            group.command("review", "_review", is_preview=True)
+            group.command("comment", "_comment", is_preview=True)
+
+    @staticmethod
+    def load_arguments(loader: CLICommandsLoader) -> None:
+        """Add patch_repo, patch_pr, and access_token arguments."""
+        with ArgumentsContext(loader, "ado") as args:
+            args.positional("question", type=str, nargs="+", help="Provide a question to ask GPT.")
+            args.argument(
+                "diff",
+                type=str,
+                help="Git diff to review.",
+                default=".diff",
+            )
+            args.argument(
+                "access_token",
+                type=str,
+                help="The Azure DevOps access token. Set or use ADO_TOKEN environment variable.",
+                default=None,
+            )
+            args.argument(
+                "link",
+                type=str,
+                help="The link to the PR.",
+                default=None,
+            )
+        with ArgumentsContext(loader, "ado comment") as args:
+            args.argument(
+                "comment_id",
+                type=int,
+                help="The comment ID of Azure DevOps Pull Request Comment.",
+                default=None,
+            )
