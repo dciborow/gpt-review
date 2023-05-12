@@ -8,17 +8,21 @@ from azure.devops.v7_1.git.models import (
     GitCommitDiffs,
     GitPullRequest,
     Comment,
+    GitPullRequestCommentThread,
 )
 
 from gpt_review._devops import DevOpsClient
 
-
+# Azure Devops PAT requires
+# - Code: 'Read','Write'
+# - Pull Request Threads: 'Read & Write'
 TOKEN = os.getenv("ADO_TOKEN", "token1")
+
 ORG = os.getenv("ADO_ORG", "msazure")
 PROJECT = os.getenv("ADO_PROJECT", "one")
 REPO = os.getenv("ADO_REPO", "azure-gaming")
 PR_ID = int(os.getenv("ADO_PR_ID", 8063875))
-COMMIT_ID = int(os.getenv("ADO_COMMIT_ID", 141344325))
+COMMENT_ID = int(os.getenv("ADO_COMMENT_ID", 141344325))
 
 SOURCE = os.getenv("ADO_COMMIT_SOURCE", "36f9a015ee220516f5f553faaa1898ab10972536")
 TARGET = os.getenv("ADO_COMMIT_TARGET", "ecea1ea7db038317e94b45e090781410dc519b85")
@@ -192,6 +196,17 @@ def mock_update_thread(monkeypatch) -> None:
         def update_thread(self, text, repository_id, pull_request_id, comment_id) -> MockResponse:
             return MockResponse("mock response")
 
+        def create_comment(self, comment, repository_id, pull_request_id, thread_id, project=None) -> Comment:
+            return Comment()
+
+        def get_pull_request_thread(
+            self, repository_id, pull_request_id, thread_id, project=None, iteration=None, base_iteration=None
+        ) -> GitPullRequestCommentThread:
+            return GitPullRequestCommentThread()
+
+        def update_pull_request(self, git_pull_request_to_update, repository_id, pull_request_id, project=None):
+            return GitPullRequest()
+
         def get_commit_diffs(
             self,
             repository_id,
@@ -201,8 +216,8 @@ def mock_update_thread(monkeypatch) -> None:
             skip=None,
             base_version_descriptor=None,
             target_version_descriptor=None,
-        ) -> MockResponse:
-            return MockResponse("mock response")
+        ) -> GitCommitDiffs:
+            return GitCommitDiffs()
 
     def mock_get_core_client(self) -> MockDevOpsClient:
         return MockDevOpsClient()
@@ -236,7 +251,7 @@ def test_get_diff(devops_client: DevOpsClient, mock_update_thread) -> None:
 
 @pytest.mark.integration
 def test_create_comment_integration(devops_client: DevOpsClient) -> None:
-    response = devops_client._create_comment(pull_request_id=PR_ID, comment_id=141344325, text="text1")
+    response = devops_client._create_comment(pull_request_id=PR_ID, comment_id=COMMENT_ID, text="text1")
     assert isinstance(response, Comment)
 
 

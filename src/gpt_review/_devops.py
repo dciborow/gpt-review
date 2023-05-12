@@ -64,7 +64,7 @@ class DevOpsClient:
             thread_id (str): The Azure DevOps thread ID.
 
         Returns:
-            Response: The response from the API.
+            GitPullRequestCommentThread: The response from the API.
         """
         return self.client.get_pull_request_thread(
             repository_id=self.repository_id, pull_request_id=pull_request_id, thread_id=thread_id, project=self.project
