@@ -11,7 +11,7 @@ from azure.devops.v7_1.git.models import (
     GitPullRequestCommentThread,
 )
 
-from gpt_review._devops import DevOpsClient
+from gpt_review.repositories._devops import DevOpsClient
 
 # Azure Devops PAT requires
 # - Code: 'Read','Write'

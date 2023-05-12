@@ -1,6 +1,6 @@
 import pytest
 
-from gpt_review._github import _GitHubClient
+from gpt_review.repositories._github import _GitHubClient
 
 
 def get_pr_diff_test(starts_with, patch_repo=None, patch_pr=None) -> None:
