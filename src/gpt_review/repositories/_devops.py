@@ -1,4 +1,5 @@
 """Azure DevOps Package Wrappers to Simplify Usage."""
+import itertools
 import logging
 import json
 import os
@@ -26,8 +27,6 @@ from gpt_review._ask import _ask
 from gpt_review._command import GPTCommandGroup
 from gpt_review._review import _summarize_files
 from gpt_review.repositories._repository import _RepositoryClient
-
-import itertools
 
 
 MIN_CONTEXT_LINES = 5
@@ -216,7 +215,7 @@ class _DevOpsClient(_RepositoryClient):
             target_version_descriptor=target_version,
         )
 
-    def _read_all_text(
+    def read_all_text(
         self,
         path: str,
         commit_id: str = None,
@@ -254,7 +253,7 @@ class _DevOpsClient(_RepositoryClient):
         Returns:
             Iterator[bytes]: The bytes of the file.
         """
-        return await self.client._read_all_text(path=path, commit_id=commit_id)
+        return await self.client.read_all_text(path=path, commit_id=commit_id, **kwargs)
 
     @staticmethod
     def process_comment_payload(payload: str):
@@ -419,8 +418,8 @@ class ContextProvider:
         if not pull_request:
             raise ValueError("pull_request_event.pullRequest is required")
 
-        original_content_task = self.devops_client._read_all_text(path=thread_context.file_path, check_if_exists=True)
-        changed_content_task = self.devops_client._read_all_text(
+        original_content_task = self.devops_client.read_all_text(path=thread_context.file_path, check_if_exists=True)
+        changed_content_task = self.devops_client.read_all_text(
             path=thread_context.file_path,
             commit_id=pull_request["lastMergeSourceCommit"]["commitId"],
             check_if_exists=True,
@@ -430,6 +429,11 @@ class ContextProvider:
         original_content = original_content_task
         changed_content = changed_content_task
 
+        left_selection, right_selection = self._calculate_selection(thread_context, original_content, changed_content)
+
+        return self._create_patch(left_selection or [], right_selection or [], thread_context.file_path)
+
+    def _calculate_selection(self, thread_context, original_content, changed_content):
         left_selection = None
         right_selection = None
         if original_content and thread_context.left_file_start and thread_context.left_file_end:
@@ -449,10 +453,9 @@ class ContextProvider:
                 changed_content, thread_context.right_file_start.line, thread_context.right_file_end.line
             )
 
-        if not left_selection and not right_selection:
-            raise ValueError("Both left and right selection cannot be None")
-
-        return self._create_patch(left_selection or [], right_selection or [], thread_context.file_path)
+        if left_selection or right_selection:
+            return left_selection, right_selection
+        raise ValueError("Both left and right selection cannot be None")
 
     async def get_patches(self, pull_request_event, condensed=False) -> Iterable[List[str]]:
         """
@@ -513,29 +516,29 @@ class ContextProvider:
         return self._create_patch_list(left, right, file_path, condensed)
 
     def _create_patch_list(self, left: List[str], right: List[str], file_path: str, condensed=False) -> List[str]:
-        dp = self._calculate_minimum_change_needed(left, right)
-        l, r = 1, 1
+        needed_changes = self._calculate_minimum_change_needed(left, right)
+        line, row = 1, 1
         patch = []
 
-        while l < len(left) and r < len(right):
-            if dp[l][r] == dp[l - 1][r - 1]:
-                patch.append(left[l - 1])
-                l += 1
-                r += 1
-            elif dp[l - 1][r] < dp[l][r - 1]:
-                patch.append(f"- {left[l - 1]}")
-                l += 1
+        while line < len(left) and row < len(right):
+            if needed_changes[line][row] == needed_changes[line - 1][row - 1]:
+                patch.append(left[line - 1])
+                line += 1
+                row += 1
+            elif needed_changes[line - 1][row] < needed_changes[line][row - 1]:
+                patch.append(f"- {left[line - 1]}")
+                line += 1
             else:
-                patch.append(f"+ {right[r - 1]}")
-                r += 1
+                patch.append(f"+ {right[row - 1]}")
+                row += 1
 
-        while l <= len(left):
-            patch.append(f"- {left[l - 1]}")
-            l += 1
+        while line <= len(left):
+            patch.append(f"- {left[line - 1]}")
+            line += 1
 
-        while r <= len(right):
-            patch.append(f"+ {right[r - 1]}")
-            r += 1
+        while row <= len(right):
+            patch.append(f"+ {right[row - 1]}")
+            row += 1
 
         if condensed:
             patch = self._get_condensed_patch(patch)
@@ -563,14 +566,14 @@ class ContextProvider:
         return result
 
     def _calculate_minimum_change_needed(self, left: List[str], right: List[str]) -> List[List[int]]:
-        dp = [[0] * (len(right) + 1) for _ in range(len(left) + 1)]
+        changes = [[0] * (len(right) + 1) for _ in range(len(left) + 1)]
 
         for i, j in itertools.product(range(len(left) + 1), range(len(right) + 1)):
             if i == 0 or j == 0:
-                dp[i][j] = 0
+                changes[i][j] = 0
             elif left[i - 1] == right[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1]
+                changes[i][j] = changes[i - 1][j - 1]
             else:
-                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+                changes[i][j] = 1 + min(changes[i - 1][j], changes[i][j - 1], changes[i - 1][j - 1])
 
-        return dp
+        return changes

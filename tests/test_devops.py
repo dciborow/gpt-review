@@ -287,9 +287,18 @@ def test_process_payload_integration() -> None:
     process_payload_test()
 
 
-def test_get_patch(devops_client: _DevOpsClient) -> None:
+def get_patch_test(devops_client: _DevOpsClient) -> None:
     comment_id = LONG_PAYLOAD["resource"]["comment"]["_links"]["threads"]["href"].split("/")[-1]
     patch = devops_client.get_patch(
         pull_request_event=LONG_PAYLOAD["resource"], pull_request_id=PR_ID, comment_id=comment_id
     )
     assert len(patch) == 64
+
+
+def test_get_patch(devops_client: _DevOpsClient) -> None:
+    get_patch_test(devops_client)
+
+
+@pytest.mark.integration
+def test_get_patch_integration(devops_client: _DevOpsClient) -> None:
+    get_patch_test(devops_client)
