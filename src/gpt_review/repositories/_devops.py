@@ -449,10 +449,10 @@ class ContextProvider:
                 changed_content, thread_context.right_file_start.line, thread_context.right_file_end.line
             )
 
-        if not left_selection and not right_selection:
+        if left_selection or right_selection:
+            return self._create_patch(left_selection or [], right_selection or [], thread_context.file_path)
+        else:
             raise ValueError("Both left and right selection cannot be None")
-
-        return self._create_patch(left_selection or [], right_selection or [], thread_context.file_path)
 
     async def get_patches(self, pull_request_event, condensed=False) -> Iterable[List[str]]:
         """
