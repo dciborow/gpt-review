@@ -17,6 +17,7 @@ from llama_index import (
     SimpleDirectoryReader,
     StorageContext,
     load_index_from_storage,
+    PromptHelper,
 )
 from llama_index.indices.base import BaseGPTIndex
 from llama_index.storage.storage_context import DEFAULT_PERSIST_DIR
@@ -158,6 +159,18 @@ def _load_service_context(fast: bool = False, large: bool = False) -> ServiceCon
 
     llm_predictor = LLMPredictor(llm=llm)
 
+    max_input_size = 4096
+    num_output = 256  # hard limit
+    chunk_size_limit = 1000  # token window size per document
+    max_chunk_overlap = 20  # overlap for each token fragment
+
+    prompt_helper = PromptHelper(
+        max_input_size=max_input_size,
+        num_output=num_output,
+        max_chunk_overlap=max_chunk_overlap,
+        chunk_size_limit=chunk_size_limit,
+    )
+
     embedding_llm = LangchainEmbedding(
         OpenAIEmbeddings(
             model="text-embedding-ada-002",
@@ -166,8 +179,7 @@ def _load_service_context(fast: bool = False, large: bool = False) -> ServiceCon
     )
 
     return ServiceContext.from_defaults(
-        llm_predictor=llm_predictor,
-        embed_model=embedding_llm,
+        llm_predictor=llm_predictor, embed_model=embedding_llm, prompt_helper=prompt_helper
     )
 
 
