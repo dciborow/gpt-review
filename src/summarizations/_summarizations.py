@@ -22,9 +22,7 @@ def _load_pull_request_ids(file_path: str) -> list:
     pull_request_ids_list = []
     with open(file_path, "r", encoding="utf-8") as file:
         csv_file = csv.reader(file)
-        for line in csv_file:
-            if line[0].isdigit():
-                pull_request_ids_list.append(line[0])
+        pull_request_ids_list.extend(line[0] for line in csv_file if line[0].isdigit())
     return pull_request_ids_list
 
 
@@ -68,8 +66,7 @@ def _summarize_summary(summary_group) -> str:
     """
 
     question = load_summary_yaml().format(summaries=summary_group)
-    response = _ask(question=[question], temperature=0.0)
-    return response
+    return _ask(question=[question], temperature=0.0)
 
 
 def _summarize_summaries(summaries_list: list) -> list:
